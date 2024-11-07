@@ -23,6 +23,10 @@ import requests
 from datetime import datetime, timedelta
 from build_interface.settings import SECRET_KEY, SESSION_COOKIE_DOMAIN, JWTAuthentication
 
+import logging
+
+
+logger = logging.getLogger()
 
 class BuildDataFilter(django_filters.FilterSet):
     stream_only = django_filters.BooleanFilter(method='filter_stream_only')
@@ -264,7 +268,6 @@ def git_jira_api(request):
                 It will raise exceptions for maximum number of retries exceeded, server error,
                 and unexpected errors. GithubException 404 is propagated to the caller.
                 """
-
                 max_retries = 3
                 retry_delay = 5
                 last_message = ""
@@ -277,6 +280,7 @@ def git_jira_api(request):
                         if e.status == 403 and "rate limit" in e.data.get("message", "").lower():
                             last_message = "Rate limit exceeded"
                         elif e.status == 404:
+                            logger.error(f"GithubException 404 while calling {func.__name__}")
                             raise
                         elif 500 <= e.status < 600:
                             last_message = f"Server error {e.status}"

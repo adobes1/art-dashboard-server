@@ -15,19 +15,18 @@ USER 0
 COPY container/doozer-settings.yaml /home/"$USERNAME"/.config/doozer/settings.yaml
 COPY container/elliott-settings.yaml /home/"$USERNAME"/.config/elliott/settings.yaml
 
-# Switching back to default user
-USER "$USER_UID"
-
 WORKDIR /workspaces/art-dash
-# Upadate pip
-RUN python3 -m pip install --upgrade pip
-COPY requirements.txt ./
-RUN pip3 install --upgrade -r requirements.txt \
-    && rm requirements.txt  # We need to manually remove since we copied using COPY
 
-# Clone art-tools and install
+COPY requirements.txt ./
+RUN uv pip install --upgrade -r requirements.txt \
+    && rm requirements.txt
+
+# Update art-tools and install
 RUN cd art-tools \
     && git pull \
-    && pip3 install -e .
+    && uv pip install -e .
 
 COPY . .
+
+# Switching back to default user
+USER "$USER_UID"

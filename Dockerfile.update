@@ -21,9 +21,6 @@ COPY container/elliott-settings.yaml /home/"$USERNAME"/.config/elliott/settings.
 #     sed -i 's/#Port 22/Port 22/' /etc/ssh/sshd_config && \
 #     sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
-# Switching back to default user
-USER "$USER_UID"
-
 WORKDIR /workspaces/art-dash
 
 # If you want to run with an ssh server (for debugging in vscode), uncomment these three lines after adding a the launch.json
@@ -31,18 +28,19 @@ WORKDIR /workspaces/art-dash
 # RUN sudo chmod a+rw .vscode
 # COPY launch.json .vscode
 
-# Upadate pip
-RUN python3 -m pip install --upgrade pip
 COPY requirements.txt ./
-RUN pip3 install --upgrade -r requirements.txt \
-    && rm requirements.txt  # We need to manually remove since we copied using COPY
+RUN uv pip install --upgrade -r requirements.txt \
+    && rm requirements.txt
 
-# Clone art-tools and install
+# Update art-tools and install
 RUN cd art-tools \
     && git pull \
-    && pip3 install -e .
+    && uv pip install -e .
 
 COPY . .
+
+# Switching back to default user
+USER "$USER_UID"
 
 # Start server
 CMD ["sh", "-c", "python3 manage.py makemigrations && python3 manage.py migrate && python3 manage.py runserver 0.0.0.0:8080 --noreload"]

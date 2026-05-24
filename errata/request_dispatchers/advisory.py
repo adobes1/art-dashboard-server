@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from lib.errata.errata_requests import get_advisory_data
 
 
@@ -44,4 +45,35 @@ def route_advisory_get(request_param):
 
     if request_param["type"] == "advisory":
         data = get_advisory_data(request_param["id"])
+        if isinstance(data, dict) and "error" in data:
+            return {"status": "error", "message": data["message"], "data": None}
         return {"status": "success", "message": "Data is ready.", "data": data}
+
+
+def validate_batch_advisory_get(request):
+    ids_param = request.query_params.get("ids", None)
+    if not ids_param:
+        return False, {"status": "error", "message": "Missing 'ids' query param.", "data": []}
+
+    advisory_ids = [aid.strip() for aid in ids_param.split(",") if aid.strip()]
+    if not advisory_ids:
+        return False, {"status": "error", "message": "No valid advisory IDs provided.", "data": []}
+
+    return True, {"ids": advisory_ids}
+
+
+def route_batch_advisory_get(request_param):
+    advisory_ids = request_param["ids"]
+    results = {}
+
+    with ThreadPoolExecutor(max_workers=min(len(advisory_ids), 8)) as pool:
+        futures = {pool.submit(get_advisory_data, aid): aid for aid in advisory_ids}
+        for future in as_completed(futures):
+            aid = futures[future]
+            data = future.result()
+            if isinstance(data, dict) and "error" in data:
+                results[aid] = {"status": "error", "message": data["message"], "data": None}
+            else:
+                results[aid] = {"status": "success", "message": "Data is ready.", "data": data}
+
+    return {"status": "success", "message": "Batch data is ready.", "data": results}

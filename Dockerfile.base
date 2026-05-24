@@ -20,8 +20,11 @@ RUN curl -o /etc/pki/ca-trust/source/anchors/2022-IT-Root-CA.pem --fail -L \
     # install brewkoji
     koji brewkoji \
     mariadb-connector-c-devel openssl-devel \
- && dnf clean all \
- && python3 -m pip install --upgrade pip
+ && dnf clean all
+
+# Install uv for fast Python package management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+ENV UV_SYSTEM_PYTHON=1 UV_LINK_MODE=copy
 
 # Install OpenShift Client
 ARG OC_VERSION=candidate
@@ -57,15 +60,17 @@ COPY container/elliott-settings.yaml /home/"$USERNAME"/.config/elliott/settings.
 
 WORKDIR /workspaces/art-dash
 
-USER "$USER_UID"
-# Clone art-tools and install
+# Clone art-tools and install (as root for system-wide packages)
 RUN git clone https://github.com/openshift-eng/art-tools.git \
     && cd art-tools \
-    && pip3 install -e .
+    && uv pip install -e .
 
 # Install dependencies from requirements.txt
 COPY requirements.txt ./
-RUN pip3 install --upgrade -r requirements.txt \
+RUN uv pip install --upgrade -r requirements.txt \
     && rm requirements.txt
+
+# Switch to non-root user for runtime
+USER "$USER_UID"
 
 EXPOSE 8080

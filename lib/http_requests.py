@@ -226,7 +226,9 @@ def get_advisories(branch_name):
         group_data = _assembly_field("group", yml_data, version)
         advisories = group_data.get("advisories", {})
         jira_link = group_data.get("release_jira", "")
-        advisory_data.append([version, advisories, jira_link])
+        shipment = group_data.get("shipment", {})
+        release_date = group_data.get("release_date", "")
+        advisory_data.append([version, advisories, jira_link, shipment, release_date])
 
     return advisory_data
 
@@ -244,8 +246,28 @@ def get_branch_advisory_ids(branch_name):
                 try:
                     jira_link = advisory[2]
                 except IndexError:
-                    jira_link = None  # Assign a default value
-                advisory_data[advisory[0]] = [advisory[1], jira_link]
+                    jira_link = None
+                try:
+                    shipment_raw = advisory[3]
+                    release_date = advisory[4]
+                except IndexError:
+                    shipment_raw = {}
+                    release_date = ""
+                shipment_info = {}
+                if shipment_raw:
+                    shipment_advisories = []
+                    for a in shipment_raw.get("advisories", []):
+                        if a.get("kind") in ("image", "extras", "metadata"):
+                            shipment_advisories.append({
+                                "kind": a["kind"],
+                                "live_id": a.get("live_id")
+                            })
+                    shipment_info = {
+                        "url": shipment_raw.get("url", ""),
+                        "release_date": release_date,
+                        "advisories": shipment_advisories
+                    }
+                advisory_data[advisory[0]] = [advisory[1], jira_link, shipment_info]
         if not advisories:  # If advisories is None or empty
             return {"current": {}, "previous": {}}  # Return empty data structure
 

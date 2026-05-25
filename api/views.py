@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from api.fetchers import rpms_images_fetcher
+from lib.gitlab_requests import get_shipment_status
 from api.image_pipeline import pipeline_image_names
 from api.util import get_ga_version
 from build.models import Build
@@ -516,6 +517,28 @@ def rpms_images_fetcher_view(request):
         "status": "success",
         "payload": result
     }, status=200)
+
+
+@api_view(["GET"])
+def shipment_status(request):
+    mr_url = request.query_params.get("url", None)
+    branch = request.query_params.get("branch", None)
+    assembly = request.query_params.get("assembly", None)
+
+    if not all([mr_url, branch, assembly]):
+        return Response(
+            data={"status": "error", "message": "Missing required params: url, branch, assembly"},
+            status=400
+        )
+
+    try:
+        result = get_shipment_status(mr_url, branch, assembly)
+        return Response(data=result)
+    except Exception as e:
+        return Response(
+            data={"status": "error", "message": str(e)},
+            status=500
+        )
 
 
 @api_view(["POST"])

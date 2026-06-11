@@ -2,6 +2,7 @@ import os
 import re
 import yaml
 import base64
+import hashlib
 import logging
 import requests
 from urllib.parse import quote_plus
@@ -130,7 +131,10 @@ def get_shipment_status(mr_url, branch, assembly):
         file_path_encoded = quote_plus(file_path)
         try:
             parsed = _get_file_content(project_encoded, file_path_encoded, ref)
-            return kind, _parse_shipment_file(parsed)
+            result = _parse_shipment_file(parsed)
+            anchor = hashlib.sha1(file_path.encode()).hexdigest()
+            result["diff_url"] = f"{mr_url}/diffs#{anchor}"
+            return kind, result
         except Exception as e:
             logger.warning(f"Could not read shipment file for {kind}: {e}")
             return kind, None
